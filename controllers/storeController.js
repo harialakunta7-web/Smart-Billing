@@ -136,33 +136,41 @@ const getAllStores = async (req, res) => {
   }
 };
 // ✅ Get Store by ID
+// ✅ Get Store by ID with Authorization header check
 const getStoreById = async (req, res) => {
   try {
-    const storeId = req.params.storeId;
+    // 1️⃣ Check Authorization header
+    const authHeader = req.headers["authorization"];
+    if (!authHeader || authHeader !== `Bearer ${process.env.ADMIN_TOKEN}`) {
+      return res.status(401).json({ error: "Unauthorized. Invalid or missing token" });
+    }
 
-    // Validate storeId
+    // 2️⃣ Get storeId from params
+    const storeId = req.params.storeId;
     if (!storeId || isNaN(storeId)) {
       return res.status(400).json({ error: "Invalid or missing store ID" });
     }
 
+    // 3️⃣ Fetch store from DB
     const query = `
       SELECT id AS storeId, store_name AS storeName, email, address, gst_number AS gstNumber, 'active' AS status
       FROM stores
       WHERE id = $1
     `;
-
     const { rows } = await pool.query(query, [storeId]);
 
     if (rows.length === 0) {
       return res.status(404).json({ error: "Store not found" });
     }
 
+    // 4️⃣ Return store details
     res.status(200).json(rows[0]);
   } catch (error) {
     console.error("Error fetching store by ID:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
 
 
 module.exports = { registerStore, getAllStores, getStoreById };
