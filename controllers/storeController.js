@@ -55,38 +55,58 @@ const generateApiKey = require("../utils/generateApikey");
 // };
 
 const registerStore = async (req, res) => {
-  try {
-    const { storeName, ownerName, email, phone, gstNumber, address, logoUrl } = req.body;
+  const { storeName, ownerName, email, phone, gstNumber, address, logoUrl } = req.body;
 
-    // ✅ Phone validation: must be 10 digits only
+  try {
+    // ✅ Validate phone number (must be exactly 10 digits)
     const phoneRegex = /^[0-9]{10}$/;
-    if (!phoneRegex.test(phone)) {
+    if (phone && !phoneRegex.test(phone)) {
       return res.status(400).json({ error: "Phone number must be exactly 10 digits" });
     }
 
-    if (!storeName || !ownerName || !email || !phone) {
-      return res.status(400).json({ error: "Missing required fields" });
+    const query = `
+      SELECT * FROM stores 
+      WHERE (email = $1 AND email IS NOT NULL)
+         OR (phone = $2 AND phone IS NOT NULL)
+         OR (gst_number = $3 AND gst_number IS NOT NULL)
+      LIMIT 1
+    `;
+    const { rows } = await pool.query(query, [email, phone, gstNumber]);
+
+    if (rows.length > 0) {
+      return res.status(200).json({
+        status: "Store already existed",
+        storeId: rows[0].id,
+        apiKey: rows[0].api_key,
+      });
     }
 
-    // Check if store already exists
-    const existing = await pool.query("SELECT * FROM stores WHERE phone = $1 OR email = $2", [phone, email]);
-    if (existing.rows.length > 0) {
-      return res.status(400).json({ error: "Store with this phone or email already exists" });
-    }
+    const apiKey = generateApiKey();
+    const insertQuery = `
+      INSERT INTO stores 
+      (store_name, owner_name, email, phone, gst_number, address, logo_url, api_key)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+      RETURNING id, api_key
+    `;
+    const result = await pool.query(insertQuery, [
+      storeName || null,
+      ownerName || null,
+      email || null,
+      phone || null,
+      gstNumber || null,
+      address || null,
+      logoUrl || null,
+      apiKey,
+    ]);
 
-    // Generate API key and insert
-    const apiKey = require("crypto").randomBytes(16).toString("hex");
-    const result = await pool.query(
-      `INSERT INTO stores (store_name, owner_name, email, phone, gst_number, address, logo_url, api_key)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING *`,
-      [storeName, ownerName, email, phone, gstNumber, address, logoUrl, apiKey]
-    );
-
-    res.status(201).json({ message: "Store registered successfully", store: result.rows[0] });
+    res.status(201).json({
+      storeId: result.rows[0].id,
+      apiKey: result.rows[0].api_key,
+      message: "Store registered successfully",
+    });
   } catch (error) {
-    console.error("Error registering store:", error);
-    res.status(500).json({ error: "Internal Server Error" });
+    console.error(error);
+    res.status(500).json({ error: "Internal server error" });
   }
 };
 
