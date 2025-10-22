@@ -172,5 +172,67 @@ const getStoreById = async (req, res) => {
 };
 
 
+// Update Store 
 
-module.exports = { registerStore, getAllStores, getStoreById };
+const updateStore = async (req, res) => {
+  const { storeId } = req.params;
+  const {
+    storeName,
+    ownerName,
+    email,
+    phone,
+    gstNumber,
+    address,
+    logoUrl,
+  } = req.body;
+
+  // ✅ Authorization check
+  const authHeader = req.headers.authorization;
+  if (!authHeader || authHeader !== process.env.ADMIN_TOKEN) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  try {
+    // Check if store exists
+    const existing = await pool.query("SELECT * FROM stores WHERE id = $1", [storeId]);
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ error: "Store not found" });
+    }
+
+    // Validate phone if provided
+    if (phone && !/^\d{10}$/.test(phone)) {
+      return res.status(400).json({ error: "Phone number must be exactly 10 digits" });
+    }
+
+    // Update each field individually (only if provided)
+    if (storeName) {
+      await pool.query("UPDATE stores SET store_name = $1 WHERE id = $2", [storeName, storeId]);
+    }
+    if (ownerName) {
+      await pool.query("UPDATE stores SET owner_name = $1 WHERE id = $2", [ownerName, storeId]);
+    }
+    if (email) {
+      await pool.query("UPDATE stores SET email = $1 WHERE id = $2", [email, storeId]);
+    }
+    if (phone) {
+      await pool.query("UPDATE stores SET phone = $1 WHERE id = $2", [phone, storeId]);
+    }
+    if (gstNumber) {
+      await pool.query("UPDATE stores SET gst_number = $1 WHERE id = $2", [gstNumber, storeId]);
+    }
+    if (address) {
+      await pool.query("UPDATE stores SET address = $1 WHERE id = $2", [address, storeId]);
+    }
+    if (logoUrl) {
+      await pool.query("UPDATE stores SET logo_url = $1 WHERE id = $2", [logoUrl, storeId]);
+    }
+
+    res.status(200).json({ status: "updated" });
+  } catch (error) {
+    console.error("Error updating store:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+
+module.exports = { registerStore, getAllStores, getStoreById, updateStore };

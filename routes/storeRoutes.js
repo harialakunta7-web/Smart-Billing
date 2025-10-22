@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { registerStore, getAllStores,getStoreById } = require("../controllers/storeController");
+const { registerStore, getAllStores,getStoreById,updateStore } = require("../controllers/storeController");
 
 // Register Store
 router.post("/register", registerStore);
@@ -10,4 +10,8 @@ router.get("/", getAllStores);
 
 // Get Store by ID
 router.get("/:storeId", getStoreById);
+
+// Update Store
+
+router.put("/:storeId", updateStore);
 module.exports = router;
