@@ -96,7 +96,21 @@ Response:
 {
   "status": "updated"
 }
-Notes
+
+Method: DELETE
+
+URL: https://smart-billing-production.up.railway.app/api/auth/1
+
+Headers:
+
+Authorization: superadmin123
+
+
+Response:
+
+{ "status": "deleted" }
+
+Notes:
 
 Admin authorization is required for GET all stores, GET by ID, and Update APIs.
 

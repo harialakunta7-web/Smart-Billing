@@ -232,5 +232,32 @@ const updateStore = async (req, res) => {
   }
 };
 
+// Delete store by ID
+const deleteStore = async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
 
-module.exports = { registerStore, getAllStores, getStoreById, updateStore };
+    // ✅ Authorization check
+    if (!authHeader || authHeader !== `Bearer ${process.env.ADMIN_TOKEN}`) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { storeId } = req.params;
+
+    // ✅ Delete store
+    const result = await pool.query("DELETE FROM stores WHERE id = $1 RETURNING *", [storeId]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Store not found" });
+    }
+
+    res.status(200).json({ status: "deleted" });
+  } catch (error) {
+    console.error("Error deleting store:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+
+
+module.exports = { registerStore, getAllStores, getStoreById, updateStore, deleteStore };
