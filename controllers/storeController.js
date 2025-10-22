@@ -172,8 +172,7 @@ const getStoreById = async (req, res) => {
 };
 
 
-// Update Store 
-
+// Update Store
 const updateStore = async (req, res) => {
   const { storeId } = req.params;
   const {
@@ -193,39 +192,38 @@ const updateStore = async (req, res) => {
   }
 
   try {
-    // Check if store exists
+    // ✅ Check if store exists
     const existing = await pool.query("SELECT * FROM stores WHERE id = $1", [storeId]);
     if (existing.rows.length === 0) {
       return res.status(404).json({ error: "Store not found" });
     }
 
-    // Validate phone if provided
+    // ✅ Validate phone if provided
     if (phone && !/^\d{10}$/.test(phone)) {
       return res.status(400).json({ error: "Phone number must be exactly 10 digits" });
     }
 
-    // Update each field individually (only if provided)
-    if (storeName) {
-      await pool.query("UPDATE stores SET store_name = $1 WHERE id = $2", [storeName, storeId]);
+    // ✅ Prepare fields dynamically
+    const fields = [];
+    const values = [];
+    let index = 1;
+
+    if (storeName !== undefined) { fields.push(`store_name = $${index++}`); values.push(storeName); }
+    if (ownerName !== undefined) { fields.push(`owner_name = $${index++}`); values.push(ownerName); }
+    if (email !== undefined) { fields.push(`email = $${index++}`); values.push(email); }
+    if (phone !== undefined) { fields.push(`phone = $${index++}`); values.push(phone); }
+    if (gstNumber !== undefined) { fields.push(`gst_number = $${index++}`); values.push(gstNumber); }
+    if (address !== undefined) { fields.push(`address = $${index++}`); values.push(address); }
+    if (logoUrl !== undefined) { fields.push(`logo_url = $${index++}`); values.push(logoUrl); }
+
+    if (fields.length === 0) {
+      return res.status(400).json({ error: "No fields provided for update" });
     }
-    if (ownerName) {
-      await pool.query("UPDATE stores SET owner_name = $1 WHERE id = $2", [ownerName, storeId]);
-    }
-    if (email) {
-      await pool.query("UPDATE stores SET email = $1 WHERE id = $2", [email, storeId]);
-    }
-    if (phone) {
-      await pool.query("UPDATE stores SET phone = $1 WHERE id = $2", [phone, storeId]);
-    }
-    if (gstNumber) {
-      await pool.query("UPDATE stores SET gst_number = $1 WHERE id = $2", [gstNumber, storeId]);
-    }
-    if (address) {
-      await pool.query("UPDATE stores SET address = $1 WHERE id = $2", [address, storeId]);
-    }
-    if (logoUrl) {
-      await pool.query("UPDATE stores SET logo_url = $1 WHERE id = $2", [logoUrl, storeId]);
-    }
+
+    const updateQuery = `UPDATE stores SET ${fields.join(", ")} WHERE id = $${index} RETURNING *`;
+    values.push(storeId);
+
+    await pool.query(updateQuery, values);
 
     res.status(200).json({ status: "updated" });
   } catch (error) {
