@@ -51,3 +51,53 @@ Purpose: List all registered stores (Admin Only).
 Headers:
 
 Authorization: Bearer superadmin123
+
+5. Get Store by ID (Admin only)
+
+GET /api/auth/{storeId}
+
+Headers:
+
+Authorization: superadmin123
+
+
+Response:
+
+{
+  "storeId": 1,
+  "storeName": "Smart Mart",
+  "email": "ravi@example.com",
+  "address": "Hyderabad, India",
+  "gstNumber": "29ABCDE1234F1Z9",
+  "status": "active"
+}
+
+6. Update Store (Admin only)
+
+PUT /api/auth/{storeId}
+
+Headers:
+
+Authorization: superadmin123
+
+
+Body: (any field can be updated)
+
+{
+  "storeName": "Updated Mart",
+  "phone": "9876543210",
+  "address": "New Address",
+  "logoUrl": "https://example.com/new-logo.png"
+}
+
+
+Response:
+
+{
+  "status": "updated"
+}
+Notes
+
+Admin authorization is required for GET all stores, GET by ID, and Update APIs.
+
+JWT token is returned on successful login.
