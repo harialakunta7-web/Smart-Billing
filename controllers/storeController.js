@@ -187,7 +187,7 @@ const updateStore = async (req, res) => {
 
   // ✅ Authorization check
   const authHeader = req.headers.authorization;
-  if (!authHeader || authHeader !== process.env.ADMIN_TOKEN) {
+  if (!authHeader || authHeader !== `Bearer ${process.env.ADMIN_TOKEN}`) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
