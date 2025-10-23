@@ -65,16 +65,19 @@ const addProduct = async (req, res) => {
 
 
 
-// Get all products of a store
+// Get all products for a store
 const getAllProducts = async (req, res) => {
-  const storeId = req.params.storeId;
-  const apiKey = req.headers.authorization;
-
-  if (!apiKey) {
-    return res.status(401).json({ error: "Unauthorized: API key missing" });
-  }
-
   try {
+    const storeId = req.params.storeId;
+    const apiKey = req.headers.authorization;
+
+    console.log("📌 Fetching products for storeId:", storeId);
+    console.log("🔑 API Key received:", apiKey);
+
+    if (!apiKey) {
+      return res.status(401).json({ error: "Unauthorized: API key missing" });
+    }
+
     // Check if store exists and API key matches
     const storeResult = await pool.query(
       "SELECT * FROM stores WHERE id = $1 AND api_key = $2",
@@ -85,15 +88,19 @@ const getAllProducts = async (req, res) => {
       return res.status(401).json({ error: "Unauthorized: Invalid API key or store" });
     }
 
+    console.log("✅ Store verified:", storeResult.rows[0].store_name);
+
     // Fetch products for the store
     const productsResult = await pool.query(
       "SELECT product_id, name, price, quantity, category FROM products WHERE store_id = $1 ORDER BY product_id ASC",
       [storeId]
     );
 
+    console.log("📦 Products found:", productsResult.rows.length);
+
     res.status(200).json(productsResult.rows);
   } catch (error) {
-    console.error("Error fetching products:", error);
+    console.error("❌ Error fetching products:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 };
