@@ -241,6 +241,45 @@ const updateProduct = async (req, res) => {
   }
 };
 
+// Delete Product by productId
+
+const deleteProduct = async (req, res) => {
+  try {
+    const productId = req.params.id; // Using 'id' from products table
+    const apiKey = req.headers.authorization; // API key from header
+
+    if (!apiKey) {
+      return res.status(401).json({ error: "Unauthorized: API key missing" });
+    }
+
+    // Verify store by API key
+    const storeQuery = await pool.query(
+      "SELECT * FROM stores WHERE api_key = $1",
+      [apiKey]
+    );
+
+    if (storeQuery.rows.length === 0) {
+      return res.status(401).json({ error: "Unauthorized: Invalid API key" });
+    }
+
+    const storeId = storeQuery.rows[0].id;
+
+    // Delete product if it belongs to this store
+    const deleteQuery = await pool.query(
+      "DELETE FROM products WHERE id = $1 AND store_id = $2 RETURNING id",
+      [productId, storeId]
+    );
+
+    if (deleteQuery.rows.length === 0) {
+      return res.status(404).json({ error: "Product not found for this store" });
+    }
+
+    res.status(200).json({ status: "deleted" });
+  } catch (error) {
+    console.error("Error deleting product:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
 
 
-module.exports = { addProduct, getAllProducts,getProductDetails,updateProduct };
+module.exports = { addProduct, getAllProducts,getProductDetails,updateProduct, deleteProduct };
