@@ -12,7 +12,7 @@ app.use(express.json());
 // Routes
 app.use("/api/auth", storeRoutes);
 app.use("/api/auth", authRoutes);
-app.use("/api", productRoutes);
+app.use("/api/products", productRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
