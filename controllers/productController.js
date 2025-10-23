@@ -92,7 +92,7 @@ const getAllProducts = async (req, res) => {
 
     // Fetch products for the store
     const productsResult = await pool.query(
-      "SELECT product_id, name, price, quantity, category FROM products WHERE store_id = $1 ORDER BY product_id ASC",
+      "SELECT id, name, price, quantity, category FROM products WHERE store_id = $1 ORDER BY product_id ASC",
       [storeId]
     );
 
