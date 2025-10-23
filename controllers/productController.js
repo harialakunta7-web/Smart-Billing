@@ -157,6 +157,90 @@ const getProductDetails = async (req, res) => {
   }
 };
 
+// update product 
+
+const updateProduct = async (req, res) => {
+  const productId = req.params.productId; // product id from URL
+  const apiKey = req.headers.authorization; // store api key
+
+  // ✅ 1️⃣ Check for API key
+  if (!apiKey) {
+    return res.status(401).json({ error: "Unauthorized: Missing API key" });
+  }
+
+  const { name, price, quantity, category, unit } = req.body;
+
+  try {
+    // ✅ 2️⃣ Check store by API key
+    const storeResult = await pool.query(
+      "SELECT id FROM stores WHERE api_key = $1",
+      [apiKey]
+    );
+
+    if (storeResult.rows.length === 0) {
+      return res.status(401).json({ error: "Unauthorized: Invalid API key" });
+    }
+
+    const storeId = storeResult.rows[0].id;
+
+    // ✅ 3️⃣ Check if product belongs to that store
+    const productResult = await pool.query(
+      "SELECT * FROM products WHERE id = $1 AND store_id = $2",
+      [productId, storeId]
+    );
+
+    if (productResult.rows.length === 0) {
+      return res.status(404).json({ error: "Product not found for this store" });
+    }
+
+    // ✅ 4️⃣ Dynamically collect only fields that need update
+    const fields = [];
+    const values = [];
+    let index = 1;
+
+    if (name) {
+      fields.push(`name = $${index++}`);
+      values.push(name);
+    }
+    if (price) {
+      fields.push(`price = $${index++}`);
+      values.push(price);
+    }
+    if (quantity) {
+      fields.push(`quantity = $${index++}`);
+      values.push(quantity);
+    }
+    if (category) {
+      fields.push(`category = $${index++}`);
+      values.push(category);
+    }
+    if (unit) {
+      fields.push(`unit = $${index++}`);
+      values.push(unit);
+    }
+
+    if (fields.length === 0) {
+      return res.status(400).json({ error: "No fields provided for update" });
+    }
+
+    // ✅ 5️⃣ Update the product
+    const updateQuery = `
+      UPDATE products
+      SET ${fields.join(", ")}
+      WHERE id = $${index++} AND store_id = $${index}
+      RETURNING id
+    `;
+
+    values.push(productId, storeId);
+    await pool.query(updateQuery, values);
+
+    res.status(200).json({ status: "updated" });
+  } catch (error) {
+    console.error("Error updating product:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
 
 
-module.exports = { addProduct, getAllProducts,getProductDetails };
+
+module.exports = { addProduct, getAllProducts,getProductDetails,updateProduct };
