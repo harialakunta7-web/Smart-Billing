@@ -66,37 +66,41 @@ const addProduct = async (req, res) => {
 
 
 // Get all products for a store
+
 const getAllProducts = async (req, res) => {
+  const storeId = req.params.storeId;
+  const apiKey = req.headers.authorization;
+
+  // Step 1 — Check API key
+  if (!apiKey) {
+    return res.status(401).json({ error: "Unauthorized: API key missing" });
+  }
+
+  console.log("📌 Fetching products for storeId:", storeId);
+  console.log("🔑 API Key received:", apiKey);
+
   try {
-    const storeId = req.params.storeId;
-    const apiKey = req.headers.authorization;
-
-    console.log("📌 Fetching products for storeId:", storeId);
-    console.log("🔑 API Key received:", apiKey);
-
-    if (!apiKey) {
-      return res.status(401).json({ error: "Unauthorized: API key missing" });
-    }
-
-    // Check if store exists and API key matches
+    // Step 2 — Verify store and API key
     const storeResult = await pool.query(
       "SELECT * FROM stores WHERE id = $1 AND api_key = $2",
       [storeId, apiKey]
     );
 
     if (storeResult.rows.length === 0) {
+      console.log("❌ Store not found or invalid API key");
       return res.status(401).json({ error: "Unauthorized: Invalid API key or store" });
     }
 
     console.log("✅ Store verified:", storeResult.rows[0].store_name);
 
-    // Fetch products for the store
+    // Step 3 — Fetch products
+    // Replace 'id' with your actual column name if different
     const productsResult = await pool.query(
-      "SELECT id, name, price, quantity, category FROM products WHERE store_id = $1 ORDER BY product_id ASC",
+      "SELECT id AS product_id, name, price, quantity, category FROM products WHERE store_id = $1 ORDER BY id ASC",
       [storeId]
     );
 
-    console.log("📦 Products found:", productsResult.rows.length);
+    console.log("✅ Products fetched:", productsResult.rows.length);
 
     res.status(200).json(productsResult.rows);
   } catch (error) {
@@ -104,5 +108,6 @@ const getAllProducts = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
 
 module.exports = { addProduct, getAllProducts };
