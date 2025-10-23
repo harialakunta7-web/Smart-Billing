@@ -2,7 +2,7 @@
 
 const express = require("express");
 const router = express.Router();
-const { addProduct,getAllProducts,getProductDetails,updateProduct,deleteProduct } = require("../controllers/productController");
+const { addProduct,getAllProducts,getProductDetails,updateProduct,deleteProduct, updateStock } = require("../controllers/productController");
 
 router.post("/products", addProduct);
 // Get all products of a store
@@ -16,6 +16,9 @@ router.put("/products/:productId", updateProduct);
 
 // Delete product by productId
 router.delete("/products/:id", deleteProduct);
+
+// update stock of a product
+router.patch("/products/stock/:productId", updateStock);
 
 
 

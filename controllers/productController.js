@@ -281,5 +281,55 @@ const deleteProduct = async (req, res) => {
   }
 };
 
+// Update Stock Quantity
 
-module.exports = { addProduct, getAllProducts,getProductDetails,updateProduct, deleteProduct };
+const updateStock = async (req, res) => {
+  const productId = req.params.productId;
+  const { quantityChange } = req.body;
+  const apiKey = req.headers.authorization;
+
+  if (!apiKey) {
+    return res.status(401).json({ error: "Unauthorized: API key missing" });
+  }
+
+  if (quantityChange === undefined || typeof quantityChange !== "number") {
+    return res.status(400).json({ error: "quantityChange must be a number" });
+  }
+
+  try {
+    // Check if product exists and store matches API key
+    const productResult = await pool.query(
+      `SELECT p.id, p.quantity, s.store_name
+       FROM products p
+       JOIN stores s ON p.store_id = s.id
+       WHERE p.id = $1 AND s.api_key = $2`,
+      [productId, apiKey]
+    );
+
+    if (productResult.rows.length === 0) {
+      return res.status(404).json({ error: "Product not found or invalid API key" });
+    }
+
+    const currentQuantity = productResult.rows[0].quantity;
+    const newQuantity = currentQuantity + quantityChange;
+
+    // Optional: prevent negative stock
+    if (newQuantity < 0) {
+      return res.status(400).json({ error: "Stock cannot be negative" });
+    }
+
+    // Update quantity
+    await pool.query(
+      "UPDATE products SET quantity = $1 WHERE id = $2",
+      [newQuantity, productId]
+    );
+
+    res.status(200).json({ productId, newQuantity });
+  } catch (error) {
+    console.error("Error updating stock:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+
+module.exports = { addProduct, getAllProducts,getProductDetails,updateProduct, deleteProduct,updateStock };
