@@ -55,7 +55,7 @@ const generateApiKey = require("../utils/generateApikey");
 // };
 
 const registerStore = async (req, res) => {
-  const { storeName, ownerName, email, phone, gstNumber, address, logoUrl } = req.body;
+  const { storeName, ownerName,typeOfBusiness, email, phone, gstNumber, address, logoUrl } = req.body;
 
   try {
     // ✅ Validate phone number (must be exactly 10 digits)
@@ -84,17 +84,19 @@ const registerStore = async (req, res) => {
     const apiKey = generateApiKey();
     const insertQuery = `
       INSERT INTO stores 
-      (store_name, owner_name, email, phone, gst_number, address, logo_url, api_key)
+      (store_name, owner_name,typeOfBusiness, email, phone, gst_number, address,pincode, logo_url, api_key)
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
       RETURNING id, api_key
     `;
     const result = await pool.query(insertQuery, [
       storeName || null,
       ownerName || null,
+      typeOfBusiness || null,
       email || null,
       phone || null,
       gstNumber || null,
       address || null,
+      pincode || null,
       logoUrl || null,
       apiKey,
     ]);
