@@ -1,6 +1,6 @@
 
-
-const pool = require("../db"); // database connection
+// database connection
+const pool = require("../db"); 
 
 // Add Product
 const addProduct = async (req, res) => {
