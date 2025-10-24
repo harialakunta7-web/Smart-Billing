@@ -111,6 +111,7 @@ Response:
 { "status": "deleted" }
 
 Notes:
+// here main point is we need to install CORS package.........otherwise we get errors while consuming the apis....... 
 
 Admin authorization is required for GET all stores, GET by ID, and Update APIs.
 
