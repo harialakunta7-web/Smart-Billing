@@ -55,7 +55,7 @@ const generateApiKey = require("../utils/generateApikey");
 // };
 
 const registerStore = async (req, res) => {
-  const { storeName, ownerName,typeOfBusiness, email, phone, gstNumber, address, logoUrl } = req.body;
+  const { storeName, ownerName,typeOfBusiness, email, phone, gstNumber, address,pincode, logoUrl } = req.body;
 
   try {
     // ✅ Validate phone number (must be exactly 10 digits)
