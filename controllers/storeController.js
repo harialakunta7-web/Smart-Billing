@@ -84,7 +84,7 @@ const registerStore = async (req, res) => {
     const apiKey = generateApiKey();
     const insertQuery = `
       INSERT INTO stores 
-      (store_name, owner_name,typeOfBusiness, email, phone, gst_number, address,pincode, logo_url, api_key)
+      (store_name, owner_name,typeof_business, email, phone, gst_number, address,pincode, logo_url, api_key)
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
       RETURNING id, api_key
     `;
