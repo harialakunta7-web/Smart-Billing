@@ -126,7 +126,7 @@ const getAllStores = async (req, res) => {
 
     const result = await pool.query(`
       SELECT id AS "storeId", store_name AS "storeName", owner_name AS "ownerName",
-             email,typeof_business AS "typeOfBusiness" phone, gst_number AS "gstNumber",  pincode
+             email,typeof_business AS "typeOfBusiness", phone, gst_number AS "gstNumber",pincode
       FROM stores
       ORDER BY id ASC
     `);
