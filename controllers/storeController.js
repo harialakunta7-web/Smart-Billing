@@ -126,7 +126,7 @@ const getAllStores = async (req, res) => {
 
     const result = await pool.query(`
       SELECT id AS "storeId", store_name AS "storeName", owner_name AS "ownerName",
-             email, phone, gst_number AS "gstNumber"
+             email,typeof_business AS "typeOfBusiness" phone, gst_number AS "gstNumber",  pincode
       FROM stores
       ORDER BY id ASC
     `);
@@ -155,7 +155,7 @@ const getStoreById = async (req, res) => {
 
     // 3️⃣ Fetch store from DB
     const query = `
-      SELECT id AS storeId, store_name AS storeName, email, address, gst_number AS gstNumber, 'active' AS status
+      SELECT id AS storeId, store_name AS storeName, email, address, gst_number AS gstNumber,typeof_business AS "typeOfBusiness", 'active' AS status
       FROM stores
       WHERE id = $1
     `;
@@ -181,9 +181,11 @@ const updateStore = async (req, res) => {
     storeName,
     ownerName,
     email,
+    typeOfBusiness,
     phone,
     gstNumber,
     address,
+    pincode,
     logoUrl,
   } = req.body;
 
@@ -213,9 +215,11 @@ const updateStore = async (req, res) => {
     if (storeName !== undefined) { fields.push(`store_name = $${index++}`); values.push(storeName); }
     if (ownerName !== undefined) { fields.push(`owner_name = $${index++}`); values.push(ownerName); }
     if (email !== undefined) { fields.push(`email = $${index++}`); values.push(email); }
+    if (typeOfBusiness !== undefined) { fields.push(`typeof_business = $${index++}`); values.push(typeOfBusiness); }
     if (phone !== undefined) { fields.push(`phone = $${index++}`); values.push(phone); }
     if (gstNumber !== undefined) { fields.push(`gst_number = $${index++}`); values.push(gstNumber); }
     if (address !== undefined) { fields.push(`address = $${index++}`); values.push(address); }
+    if (pincode !== undefined) { fields.push(`pincode = $${index++}`); values.push(pincode); }
     if (logoUrl !== undefined) { fields.push(`logo_url = $${index++}`); values.push(logoUrl); }
 
     if (fields.length === 0) {
