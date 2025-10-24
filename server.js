@@ -1,4 +1,5 @@
 const express = require("express");
+const cors = require("cors");
 const dotenv = require("dotenv");
 const storeRoutes = require("./routes/storeRoutes");
 const authRoutes = require("./routes/authRoutes");
@@ -7,6 +8,8 @@ const productRoutes = require("./routes/productRoutes");
 
 dotenv.config();
 const app = express();
+// ✅ Middlewares — must come before routes
+app.use(cors());
 app.use(express.json());
 
 // Routes
