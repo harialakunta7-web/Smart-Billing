@@ -99,4 +99,54 @@ const createInvoice = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
-module.exports = {  createInvoice };
+
+// ✅ Get Invoice by ID (No storeId required)
+const getInvoiceById = async (req, res) => {
+  const { invoiceId } = req.params;
+
+  try {
+    // 1️⃣ Validate input
+    if (!invoiceId) {
+      return res.status(400).json({ error: "Missing invoiceId" });
+    }
+
+    // 2️⃣ Fetch invoice details
+    const invoiceResult = await pool.query(
+      `SELECT id AS invoiceId, store_id AS storeId, customer_name, phone,
+              total, payment_method, status, created_at AS createdAt
+       FROM invoices
+       WHERE id = $1`,
+      [invoiceId]
+    );
+
+    if (invoiceResult.rows.length === 0) {
+      return res.status(404).json({ message: "Invoice not found" });
+    }
+
+    const invoice = invoiceResult.rows[0];
+
+    // 3️⃣ Fetch invoice items with product details
+    const itemsResult = await pool.query(
+      `SELECT ii.product_id AS productId, p.name AS productName,
+              ii.qty, ii.price, (ii.qty * ii.price) AS subtotal
+       FROM invoice_items ii
+       JOIN products p ON ii.product_id = p.id
+       WHERE ii.invoice_id = $1`,
+      [invoiceId]
+    );
+
+    invoice.items = itemsResult.rows;
+
+    // 4️⃣ Return response
+    res.status(200).json({
+      success: true,
+      invoice,
+    });
+
+  } catch (error) {
+    console.error("❌ Error fetching invoice:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+module.exports = {  createInvoice, getInvoiceById };

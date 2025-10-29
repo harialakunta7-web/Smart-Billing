@@ -1,12 +1,12 @@
 const express = require("express");
 const router = express.Router();
-const { createInvoice } = require("../controllers/invoiceController");
+const { createInvoice,getInvoiceById } = require("../controllers/invoiceController");
 
 
 
 // When mounted at /api in server.js, use plain /invoices here
 router.post("/invoices", createInvoice);
-// router.get("/invoices/:invoiceId", getInvoiceById);
+router.get("/invoices/:invoiceId", getInvoiceById);
 // router.get("/stores/:storeId/invoices", getInvoicesByStore);
 // router.get("/invoices/pdf/:invoiceId", getInvoicePDF);
 // router.patch("/invoices/:invoiceId/status", updateInvoiceStatus);
