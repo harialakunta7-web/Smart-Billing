@@ -294,8 +294,8 @@ const generateInvoicePDF = async (invoice, items, res) => {
     doc.font("Helvetica-Bold").fontSize(14).text(`Grand Total: ₹${grandTotal.toFixed(2)}`, { align: "center" });
 
     // === UPI QR CODE ===
-    const upiId = "6360095490@axl";
-    const payeeName = "RohitKumar";
+    const upiId = "6309769305@axl";
+    const payeeName = "Hari";
     const amount = grandTotal.toFixed(2);
     const upiLink = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR`;
 
