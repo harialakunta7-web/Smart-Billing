@@ -4,6 +4,7 @@ const dotenv = require("dotenv");
 const storeRoutes = require("./routes/storeRoutes");
 const authRoutes = require("./routes/authRoutes");
 const productRoutes = require("./routes/productRoutes");
+const invoiceRoutes = require("./routes/invoiceRoutes");
 
 
 dotenv.config();
@@ -16,6 +17,7 @@ app.use(express.json());
 app.use("/api/auth", storeRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api", productRoutes);
+app.use("/api", invoiceRoutes); 
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
