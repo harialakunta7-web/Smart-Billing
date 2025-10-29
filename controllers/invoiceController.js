@@ -1,4 +1,6 @@
 const pool = require("../db");
+const PDFDocument = require("pdfkit");
+const QRCode = require("qrcode");
 
 // Create a new invoice
 const createInvoice = async (req, res) => {
