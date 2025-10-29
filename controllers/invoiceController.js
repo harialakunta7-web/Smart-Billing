@@ -27,7 +27,7 @@ const createInvoice = async (req, res) => {
 
       if (productResult.rows.length === 0) {
         await pool.query("ROLLBACK");
-        return res.status(404).json({ message: 'Product with ID ${productId} not found '});
+        return res.status(404).json({ message: `Product with ID ${productId} not found `});
       }
 
       const price = Number(productResult.rows[0].price);
