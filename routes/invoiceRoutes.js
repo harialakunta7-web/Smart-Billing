@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { createInvoice,getInvoiceById,getInvoicesByStore } = require("../controllers/invoiceController");
+const { createInvoice,getInvoiceById,getInvoicesByStore,getInvoicePDF } = require("../controllers/invoiceController");
 
 
 
@@ -8,6 +8,6 @@ const { createInvoice,getInvoiceById,getInvoicesByStore } = require("../controll
 router.post("/invoices", createInvoice);
 router.get("/invoices/:invoiceId", getInvoiceById);
 router.get("/invoices/stores/:storeId", getInvoicesByStore);
-// router.get("/invoices/pdf/:invoiceId", getInvoicePDF);
+router.get("/invoices/pdf/:invoiceId", getInvoicePDF);
 // router.patch("/invoices/:invoiceId/status", updateInvoiceStatus);
 module.exports = router;
