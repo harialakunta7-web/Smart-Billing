@@ -5,7 +5,7 @@ export const generateInvoicePDF = async (invoice, items, res) => {
   try {
     const doc = new PDFDocument({ margin: 40 });
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", 'attachment; filename=invoice_${invoice.id}.pdf');
+    res.setHeader("Content-Disposition", `attachment; filename=invoice_${invoice.id}.pdf`);
     doc.pipe(res);
 
     // === HEADER ===
@@ -22,11 +22,11 @@ export const generateInvoicePDF = async (invoice, items, res) => {
     doc.font("Helvetica").fontSize(12);
     const pad = 40;
 
-    doc.text('Invoice ID: ${invoice.id || "N/A"}', pad, doc.y);
-    doc.text('Store ID: ${invoice.store_id || "N/A"}', pad, doc.y + 5);
-    doc.text('Customer Name: ${invoice.customer_name || "N/A"}', pad, doc.y + 10);
-    doc.text('Phone: ${invoice.phone || "N/A"}', pad, doc.y + 15);
-    doc.text('Date: ${new Date(invoice.created_at || Date.now()).toLocaleString()}', pad, doc.y + 20);
+    doc.text(`Invoice ID: ${invoice.id || "N/A"}`, pad, doc.y);
+    doc.text(`Store ID: ${invoice.store_id || "N/A"}`, pad, doc.y + 5);
+    doc.text(`Customer Name: ${invoice.customer_name || "N/A"}`, pad, doc.y + 10);
+    doc.text(`Phone: ${invoice.phone || "N/A"}`, pad, doc.y + 15);
+    doc.text(`Date: ${new Date(invoice.created_at || Date.now()).toLocaleString()}`, pad, doc.y + 20);
     doc.moveDown(2);
 
     // === TABLE HEADER ===
@@ -72,9 +72,9 @@ export const generateInvoicePDF = async (invoice, items, res) => {
         item.product_id?.toString() || "N/A",
         description,
         qty.toString(),
-        '₹${price.toFixed(2)}',
-        '${discount}%',
-        '₹${discountedTotal.toFixed(2)}',
+        `₹${price.toFixed(2)}`,
+        `${discount}%`,
+        `₹${discountedTotal.toFixed(2)}`,
       ];
 
       const descHeight = doc.heightOfString(description, {
@@ -108,7 +108,7 @@ export const generateInvoicePDF = async (invoice, items, res) => {
         .font("Helvetica-Bold")
         .fontSize(12)
         .fillColor("green")
-        .text('You saved ₹${totalSaved.toFixed(2)} on this purchase!', { align: "left" })
+        .text(`You saved ₹${totalSaved.toFixed(2)} on this purchase!`, { align: "left" })
         .fillColor("black");
     }
 
@@ -117,13 +117,13 @@ export const generateInvoicePDF = async (invoice, items, res) => {
     doc
       .font("Helvetica-Bold")
       .fontSize(14)
-      .text('Grand Total: ₹${grandTotal.toFixed(2)}', { align: "center" });
+      .text(`Grand Total: ₹${grandTotal.toFixed(2)}`, { align: "center" });
 
     // === UPI QR CODE ===
-    const upiId = "6309769305@axl";
-    const payeeName = "Hari";
+    const upiId = "6360095490@axl";
+    const payeeName = "RohitKumar";
     const amount = grandTotal.toFixed(2);
-    const upiLink = 'upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR';
+    const upiLink = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR`;
 
     const qrDataUrl = await QRCode.toDataURL(upiLink);
 
@@ -153,4 +153,3 @@ export const generateInvoicePDF = async (invoice, items, res) => {
     }
   }
 };
-module.exports = { generateInvoicePDF };
