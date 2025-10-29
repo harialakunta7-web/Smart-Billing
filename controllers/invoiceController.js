@@ -148,5 +148,39 @@ const getInvoiceById = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+// ✅ Get all invoices for a specific store
+const getInvoicesByStore = async (req, res) => {
+  const { storeId } = req.params;
 
-module.exports = {  createInvoice, getInvoiceById };
+  try {
+    // 1️⃣ Validate input
+    if (!storeId) {
+      return res.status(400).json({ error: "Missing storeId" });
+    }
+
+    // 2️⃣ Fetch all invoices for the store
+    const result = await pool.query(
+      `SELECT id AS invoiceId,
+              customer_name AS customerName,
+              total,
+              created_at AS date
+       FROM invoices
+       WHERE store_id = $1
+       ORDER BY created_at DESC`,
+      [storeId]
+    );
+
+    // 3️⃣ Return response
+    res.status(200).json({
+      success: true,
+      count: result.rows.length,
+      invoices: result.rows,
+    });
+
+  } catch (error) {
+    console.error("❌ Error fetching invoices:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+module.exports = {  createInvoice, getInvoiceById , getInvoicesByStore };
