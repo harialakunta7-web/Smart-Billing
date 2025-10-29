@@ -153,3 +153,4 @@ export const generateInvoicePDF = async (invoice, items, res) => {
     }
   }
 };
+module.exports = { generateInvoicePDF };

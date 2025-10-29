@@ -1,6 +1,7 @@
 const pool = require("../db");
 const PDFDocument = require("pdfkit");
 const QRCode = require("qrcode");
+// const { generateInvoicePDF } = require("../utils/generateInvoicePdf");
 
 // Create a new invoice
 const createInvoice = async (req, res) => {
@@ -368,4 +369,4 @@ const getInvoicePDF = async (req, res) => {
   }
 };
 
-module.exports = {  createInvoice, getInvoiceById , getInvoicesByStore, getInvoicePDF };
+module.exports = {  createInvoice, getInvoiceById , getInvoicesByStore, getInvoicePDF, };
