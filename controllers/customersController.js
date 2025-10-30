@@ -324,6 +324,57 @@ const getCustomerSpendingTrends = async (req, res) => {
   }
 };
 
+// Get Top Customers by Spending
+
+const getTopCustomers = async (req, res) => {
+  const { storeId, limit = 5 } = req.query;
+
+  try {
+    if (!storeId) {
+      return res.status(400).json({ error: "storeId is required" });
+    }
+
+    // ✅ Validate store existence
+    const storeCheck = await pool.query(`SELECT id FROM stores WHERE id = $1`, [storeId]);
+    if (storeCheck.rows.length === 0) {
+      return res.status(404).json({ error: `Store ID ${storeId} not found` });
+    }
+
+    const query = `
+      SELECT
+        c.id AS customer_id,
+        c.name AS name,
+        SUM(i.total) AS total_spent,
+        COUNT(i.id) AS orders,
+        MAX(i.created_at) AS last_purchase
+      FROM invoices i
+      JOIN customers c ON i.customer_id = c.id
+      WHERE i.store_id = $1
+      GROUP BY c.id, c.name
+      ORDER BY total_spent DESC
+      LIMIT $2;
+    `;
+
+    const result = await pool.query(query, [storeId, limit]);
+
+    const formatted = result.rows.map((row) => ({
+      customerId: row.customer_id,
+      name: row.name,
+      totalSpent: parseFloat(row.total_spent),
+      orders: parseInt(row.orders),
+      lastPurchase: row.last_purchase,
+    }));
+
+    res.json({
+      storeId,
+      topCustomers: formatted,
+      message: `Top ${limit} customers fetched successfully`,
+    });
+  } catch (error) {
+    console.error("❌ Error fetching top customers:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
 
 
-module.exports = { getAllCustomers, getRepeatCustomers, getNewCustomers, getAverageInvoiceValue , getCustomerSpendingTrends};
+module.exports = { getAllCustomers, getRepeatCustomers, getNewCustomers, getAverageInvoiceValue , getCustomerSpendingTrends, getTopCustomers};
