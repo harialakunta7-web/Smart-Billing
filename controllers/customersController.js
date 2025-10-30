@@ -340,17 +340,18 @@ const getTopCustomers = async (req, res) => {
       return res.status(404).json({ error: `Store ID ${storeId} not found` });
     }
 
+    // ✅ Fixed: use c.customer_name instead of c.name
     const query = `
       SELECT
         c.id AS customer_id,
-        c.name AS name,
+        c.customer_name AS name,
         SUM(i.total) AS total_spent,
         COUNT(i.id) AS orders,
         MAX(i.created_at) AS last_purchase
       FROM invoices i
       JOIN customers c ON i.customer_id = c.id
       WHERE i.store_id = $1
-      GROUP BY c.id, c.name
+      GROUP BY c.id, c.customer_name
       ORDER BY total_spent DESC
       LIMIT $2;
     `;
