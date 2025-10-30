@@ -73,6 +73,36 @@ const getRepeatCustomers = async (req, res) => {
   }
 };
 
+// ✅ Get New Customers (Last 30 Days)
+const getNewCustomers = async (req, res) => {
+  const { storeId } = req.query;
+
+  try {
+    if (!storeId) {
+      return res.status(400).json({ error: "Missing storeId" });
+    }
+
+    const query = `
+      SELECT COUNT(*) AS new_customers
+      FROM customers
+      WHERE store_id = $1
+      AND created_at >= NOW() - INTERVAL '30 days'
+    `;
+
+    const result = await pool.query(query, [storeId]);
+    const count = parseInt(result.rows[0].new_customers, 10) || 0;
+
+    res.status(200).json({
+      storeId,
+      newCustomers: count,
+      message: "New customer count (last 30 days) fetched successfully"
+    });
+  } catch (error) {
+    console.error("❌ Error fetching new customers:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
 
 
-module.exports = { getAllCustomers ,getRepeatCustomers};
+
+module.exports = { getAllCustomers ,getRepeatCustomers, getNewCustomers };
