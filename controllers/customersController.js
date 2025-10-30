@@ -267,6 +267,63 @@ const getAverageInvoiceValue = async (req, res) => {
   }
 };
 
+// Get Customer Spending Trends (Monthly/Daily)
+const getCustomerSpendingTrends = async (req, res) => {
+  const { storeId, range = "monthly" } = req.query;
+
+  try {
+    if (!storeId) {
+      return res.status(400).json({ error: "storeId is required" });
+    }
+
+    // ✅ Validate store exists
+    const storeCheck = await pool.query(`SELECT id FROM stores WHERE id = $1`, [storeId]);
+    if (storeCheck.rows.length === 0) {
+      return res.status(404).json({ error: `Store ID ${storeId} not found` });
+    }
+
+    let query;
+    if (range === "daily") {
+      query = `
+        SELECT
+          TO_CHAR(created_at, 'YYYY-MM-DD') AS label,
+          SUM(total) AS value
+        FROM invoices
+        WHERE store_id = $1
+          AND created_at >= NOW() - INTERVAL '30 days'
+        GROUP BY TO_CHAR(created_at, 'YYYY-MM-DD'), DATE_TRUNC('day', created_at)
+        ORDER BY DATE_TRUNC('day', created_at);
+      `;
+    } else {
+      query = `
+        SELECT
+          TO_CHAR(created_at, 'Mon') AS label,
+          SUM(total) AS value
+        FROM invoices
+        WHERE store_id = $1
+        GROUP BY TO_CHAR(created_at, 'Mon'), DATE_TRUNC('month', created_at)
+        ORDER BY DATE_TRUNC('month', created_at);
+      `;
+    }
+
+    const result = await pool.query(query, [storeId]);
+
+    const labels = result.rows.map((r) => r.label);
+    const values = result.rows.map((r) => parseFloat(r.value));
+
+    res.json({
+      storeId,
+      range,
+      labels,
+      values,
+      message: "Customer spending trends fetched successfully",
+    });
+  } catch (error) {
+    console.error("❌ Error fetching spending trends:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
 
 
-module.exports = { getAllCustomers, getRepeatCustomers, getNewCustomers, getAverageInvoiceValue };
+
+module.exports = { getAllCustomers, getRepeatCustomers, getNewCustomers, getAverageInvoiceValue , getCustomerSpendingTrends};

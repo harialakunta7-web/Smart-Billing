@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { getAllCustomers,getRepeatCustomers,getNewCustomers,getAverageInvoiceValue } = require("../controllers/customersController");
+const { getAllCustomers,getRepeatCustomers,getNewCustomers,getAverageInvoiceValue ,getCustomerSpendingTrends} = require("../controllers/customersController");
 
 // GET /api/customers?storeId=1
 router.get("/customers", getAllCustomers);
@@ -10,5 +10,7 @@ router.get("/customers/repeat", getRepeatCustomers);
 router.get("/customers/new", getNewCustomers);
 //average invoice value
 router.get("/invoice/average-value", getAverageInvoiceValue);
+// customets trends daily, weekly, monthly can be added here in future
+router.get("/customers/spending-trends", getCustomerSpendingTrends);
 
 module.exports = router;
