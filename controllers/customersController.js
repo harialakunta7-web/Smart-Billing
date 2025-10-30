@@ -36,4 +36,43 @@ const getAllCustomers = async (req, res) => {
   }
 };
 
-module.exports = { getAllCustomers };
+
+
+// ✅ Get count of repeat customers (who have made multiple purchases)
+const getRepeatCustomers = async (req, res) => {
+  const { storeId } = req.query;
+
+  try {
+    if (!storeId) {
+      return res.status(400).json({ error: "storeId is required" });
+    }
+
+    const result = await pool.query(
+      `SELECT COUNT(*) AS repeat_customers
+       FROM (
+         SELECT customer_id
+         FROM invoices
+         WHERE store_id = $1
+         GROUP BY customer_id
+         HAVING COUNT(*) > 1
+       ) AS repeat_customers;`,
+      [storeId]
+    );
+
+    const count = parseInt(result.rows[0].repeat_customers) || 0;
+
+    res.status(200).json({
+      storeId: Number(storeId),
+      repeatCustomers: count,
+      message: "Repeat customer count retrieved successfully"
+    });
+
+  } catch (error) {
+    console.error("❌ Error fetching repeat customers:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+
+
+module.exports = { getAllCustomers ,getRepeatCustomers};
