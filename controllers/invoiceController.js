@@ -105,6 +105,7 @@ const QRCode = require("qrcode");
 
 
 
+
 // Helper to generate next customer code
 async function generateCustomerCode() {
   const result = await pool.query(`SELECT COUNT(*) AS count FROM customers`);
@@ -117,14 +118,21 @@ const createInvoice = async (req, res) => {
   const { storeId, customerName, phone, items, paymentMethod } = req.body;
 
   try {
+    // 1️⃣ Validate required fields
     if (!storeId || !customerName || !items || items.length === 0 || !paymentMethod) {
       return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    // 2️⃣ Validate phone number (must be exactly 10 digits)
+    const phoneRegex = /^[0-9]{10}$/;
+    if (!phoneRegex.test(phone)) {
+      return res.status(400).json({ error: "Phone number must be exactly 10 digits" });
     }
 
     await pool.query("BEGIN");
     let total = 0;
 
-    // 1️⃣ Calculate total and validate products
+    // 3️⃣ Calculate total and validate products
     for (const item of items) {
       const { productId, qty } = item;
 
@@ -143,7 +151,7 @@ const createInvoice = async (req, res) => {
       item.price = price;
     }
 
-    // 2️⃣ Check or Create Customer
+    // 4️⃣ Check or Create Customer
     let customerId;
     const existingCustomer = await pool.query(
       `SELECT id FROM customers WHERE phone = $1 AND store_id = $2`,
@@ -163,17 +171,17 @@ const createInvoice = async (req, res) => {
       customerId = newCustomer.rows[0].id;
     }
 
-    // 3️⃣ Insert Invoice
+    // 5️⃣ Insert Invoice
     const invoiceResult = await pool.query(
       `INSERT INTO invoices (store_id, customer_id, customer_name, phone, total, payment_method, status)
        VALUES ($1, $2, $3, $4, $5, $6, 'completed')
        RETURNING id`,
-      [storeId, customerId, customerName, phone || null, total, paymentMethod]
+      [storeId, customerId, customerName, phone, total, paymentMethod]
     );
 
     const invoiceId = invoiceResult.rows[0].id;
 
-    // 4️⃣ Insert Invoice Items & Update Stock
+    // 6️⃣ Insert Invoice Items & Update Stock
     for (const item of items) {
       const { productId, qty, price } = item;
 
