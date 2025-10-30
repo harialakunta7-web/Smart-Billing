@@ -3,23 +3,131 @@ const PDFDocument = require("pdfkit");
 const QRCode = require("qrcode");
 // const { generateInvoicePDF } = require("../utils/generateInvoicePdf");
 
-// Create a new invoice
+// // Create a new invoice
+// const createInvoice = async (req, res) => {
+//   const { storeId, customerName, phone, items,paymentMethod } = req.body;
+
+//   try {
+//     // 1️⃣ Validate required fields
+//     if (!storeId || !customerName || !items || items.length === 0 || !paymentMethod) {
+//       return res.status(400).json({ error: "Missing required fields" });
+//     }
+
+//     // 2️⃣ Start a transaction
+//     await pool.query("BEGIN");
+//     let total = 0;
+//     for (const item of items) {
+//       const { productId, qty } = item;
+
+//       // Fetch product price from DB to prevent price tampering
+//       const productResult = await pool.query(
+//         "SELECT price FROM products WHERE id = $1 AND store_id = $2",
+//         [productId, storeId]
+//       );
+
+//       if (productResult.rows.length === 0) {
+//         await pool.query("ROLLBACK");
+//         return res.status(404).json({ message: `Product with ID ${productId} not found `});
+//       }
+
+//       const price = Number(productResult.rows[0].price);
+//       total += price * qty; // Add to total
+//       item.price = price;   // Save actual price for insertion
+//     }
+
+//     // 3️⃣ Insert invoice
+//     const invoiceResult = await pool.query(
+//       `INSERT INTO invoices (store_id, customer_name, phone, total, payment_method, status)
+//        VALUES ($1, $2, $3, $4, $5, 'completed')
+//        RETURNING id`,
+//       [storeId, customerName, phone || null, total, paymentMethod]
+//     );
+
+//     const invoiceId = invoiceResult.rows[0].id;
+
+//     // 4️⃣ Insert invoice items + update stock
+//     for (const item of items) {
+//       const { productId, qty, price } = item;
+
+//       if (!productId || !qty || !price) {
+//         await pool.query("ROLLBACK");
+//         return res.status(400).json({ error: "Invalid item data" });
+//       }
+
+//       // Check product and stock
+//       const productResult = await pool.query(
+//         "SELECT quantity FROM products WHERE id = $1 AND store_id = $2",
+//         [productId, storeId]
+//       );
+
+//       if (productResult.rows.length === 0) {
+//         await pool.query("ROLLBACK");
+//         return res.status(400).json({ error:' Product ${productId} not found for store ${storeId} '});
+//       }
+
+//       const availableQty = productResult.rows[0].quantity;
+//       if (availableQty < qty) {
+//         await pool.query("ROLLBACK");
+//         return res.status(400).json({ error: 'Insufficient stock for product ${productId} '});
+//       }
+
+//       // Insert item (use qty column — matches models/invoiceModel.js)
+//       await pool.query(
+//         `INSERT INTO invoice_items (invoice_id, product_id, qty, price)
+//          VALUES ($1, $2, $3, $4)`,
+//         [invoiceId, productId, qty, price]
+//       );
+
+//       // Update product stock
+//       await pool.query(
+//         "UPDATE products SET quantity = quantity - $1 WHERE id = $2",
+//         [qty, productId]
+//       );
+//     }
+
+//     // 5️⃣ Commit
+//     await pool.query("COMMIT");
+
+//     // 6️⃣ Send response
+//     res.status(201).json({
+//       invoiceId,
+//       total,
+//       status: "completed",
+//       message: "Invoice created successfully"
+//     });
+
+//   } catch (error) {
+//     console.error("❌ Error creating invoice:", error);
+//     await pool.query("ROLLBACK");
+//     res.status(500).json({ error: "Internal Server Error" });
+//   }
+// };
+
+
+
+// Helper to generate next customer code
+async function generateCustomerCode() {
+  const result = await pool.query(`SELECT COUNT(*) AS count FROM customers`);
+  const count = parseInt(result.rows[0].count) + 1;
+  return `CST${String(count).padStart(3, "0")}`; // e.g., CST001, CST002
+}
+
+// Create a new invoice (auto add customer)
 const createInvoice = async (req, res) => {
-  const { storeId, customerName, phone, items,paymentMethod } = req.body;
+  const { storeId, customerName, phone, items, paymentMethod } = req.body;
 
   try {
-    // 1️⃣ Validate required fields
     if (!storeId || !customerName || !items || items.length === 0 || !paymentMethod) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    // 2️⃣ Start a transaction
     await pool.query("BEGIN");
     let total = 0;
+
+    // 1️⃣ Calculate total and validate products
     for (const item of items) {
       const { productId, qty } = item;
 
-      // Fetch product price from DB to prevent price tampering
       const productResult = await pool.query(
         "SELECT price FROM products WHERE id = $1 AND store_id = $2",
         [productId, storeId]
@@ -27,34 +135,48 @@ const createInvoice = async (req, res) => {
 
       if (productResult.rows.length === 0) {
         await pool.query("ROLLBACK");
-        return res.status(404).json({ message: `Product with ID ${productId} not found `});
+        return res.status(404).json({ message: `Product with ID ${productId} not found` });
       }
 
       const price = Number(productResult.rows[0].price);
-      total += price * qty; // Add to total
-      item.price = price;   // Save actual price for insertion
+      total += price * qty;
+      item.price = price;
     }
 
-    // 3️⃣ Insert invoice
+    // 2️⃣ Check or Create Customer
+    let customerId;
+    const existingCustomer = await pool.query(
+      `SELECT id FROM customers WHERE phone = $1 AND store_id = $2`,
+      [phone, storeId]
+    );
+
+    if (existingCustomer.rows.length > 0) {
+      customerId = existingCustomer.rows[0].id;
+    } else {
+      const customerCode = await generateCustomerCode();
+      const newCustomer = await pool.query(
+        `INSERT INTO customers (customer_code, store_id, customer_name, phone)
+         VALUES ($1, $2, $3, $4)
+         RETURNING id`,
+        [customerCode, storeId, customerName, phone]
+      );
+      customerId = newCustomer.rows[0].id;
+    }
+
+    // 3️⃣ Insert Invoice
     const invoiceResult = await pool.query(
-      `INSERT INTO invoices (store_id, customer_name, phone, total, payment_method, status)
-       VALUES ($1, $2, $3, $4, $5, 'completed')
+      `INSERT INTO invoices (store_id, customer_id, customer_name, phone, total, payment_method, status)
+       VALUES ($1, $2, $3, $4, $5, $6, 'completed')
        RETURNING id`,
-      [storeId, customerName, phone || null, total, paymentMethod]
+      [storeId, customerId, customerName, phone || null, total, paymentMethod]
     );
 
     const invoiceId = invoiceResult.rows[0].id;
 
-    // 4️⃣ Insert invoice items + update stock
+    // 4️⃣ Insert Invoice Items & Update Stock
     for (const item of items) {
       const { productId, qty, price } = item;
 
-      if (!productId || !qty || !price) {
-        await pool.query("ROLLBACK");
-        return res.status(400).json({ error: "Invalid item data" });
-      }
-
-      // Check product and stock
       const productResult = await pool.query(
         "SELECT quantity FROM products WHERE id = $1 AND store_id = $2",
         [productId, storeId]
@@ -62,46 +184,43 @@ const createInvoice = async (req, res) => {
 
       if (productResult.rows.length === 0) {
         await pool.query("ROLLBACK");
-        return res.status(400).json({ error:' Product ${productId} not found for store ${storeId} '});
+        return res.status(400).json({ error: `Product ${productId} not found for store ${storeId}` });
       }
 
       const availableQty = productResult.rows[0].quantity;
       if (availableQty < qty) {
         await pool.query("ROLLBACK");
-        return res.status(400).json({ error: 'Insufficient stock for product ${productId} '});
+        return res.status(400).json({ error: `Insufficient stock for product ${productId}` });
       }
 
-      // Insert item (use qty column — matches models/invoiceModel.js)
       await pool.query(
         `INSERT INTO invoice_items (invoice_id, product_id, qty, price)
          VALUES ($1, $2, $3, $4)`,
         [invoiceId, productId, qty, price]
       );
 
-      // Update product stock
       await pool.query(
         "UPDATE products SET quantity = quantity - $1 WHERE id = $2",
         [qty, productId]
       );
     }
 
-    // 5️⃣ Commit
     await pool.query("COMMIT");
 
-    // 6️⃣ Send response
     res.status(201).json({
       invoiceId,
       total,
+      customerId,
       status: "completed",
-      message: "Invoice created successfully"
+      message: "Invoice created successfully & customer recorded"
     });
-
   } catch (error) {
     console.error("❌ Error creating invoice:", error);
     await pool.query("ROLLBACK");
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
 
 // ✅ Get Invoice by ID (No storeId required)
 const getInvoiceById = async (req, res) => {
