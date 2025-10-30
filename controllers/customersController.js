@@ -231,4 +231,42 @@ const getNewCustomers = async (req, res) => {
 };
 
 
-module.exports = { getAllCustomers, getRepeatCustomers, getNewCustomers };
+// Get Average Invoice Value
+const getAverageInvoiceValue = async (req, res) => {
+  const { storeId } = req.query;
+
+  try {
+    // 1️⃣ Validate input
+    if (!storeId) {
+      return res.status(400).json({ error: "storeId is required" });
+    }
+
+    // 2️⃣ Check if store exists
+    const storeCheck = await pool.query("SELECT id FROM stores WHERE id = $1", [storeId]);
+    if (storeCheck.rows.length === 0) {
+      return res.status(404).json({ error: "Invalid storeId. Store not found." });
+    }
+
+    // 3️⃣ Calculate average invoice value
+    const avgResult = await pool.query(
+      "SELECT COALESCE(ROUND(AVG(total), 2), 0) AS avg_invoice_value FROM invoices WHERE store_id = $1",
+      [storeId]
+    );
+
+    const avgValue = avgResult.rows[0].avg_invoice_value;
+
+    // 4️⃣ Send response
+    res.json({
+      storeId,
+      avgInvoiceValue: parseFloat(avgValue),
+      message: "Average invoice value fetched successfully",
+    });
+  } catch (error) {
+    console.error("❌ Error fetching average invoice value:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+
+
+module.exports = { getAllCustomers, getRepeatCustomers, getNewCustomers, getAverageInvoiceValue };

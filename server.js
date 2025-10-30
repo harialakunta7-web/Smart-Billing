@@ -19,7 +19,7 @@ app.use("/api/auth", storeRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api", productRoutes);
 app.use("/api", invoiceRoutes); 
-app.use("/api/customers", customersRoutes);
+app.use("/api", customersRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
