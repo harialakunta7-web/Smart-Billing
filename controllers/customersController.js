@@ -110,7 +110,10 @@
 // module.exports = { getAllCustomers ,getRepeatCustomers, getNewCustomers };
 
 
+
 const pool = require("../db");
+const { Parser } = require("json2csv");
+const ExcelJS = require("exceljs");
 
 // Get All Customers for a store
 const getAllCustomers = async (req, res) => {
@@ -502,4 +505,82 @@ const getCustomerDetails = async (req, res) => {
 };
 
 
-module.exports = { getAllCustomers, getRepeatCustomers, getNewCustomers, getAverageInvoiceValue , getCustomerSpendingTrends, getTopCustomers, getCustomerLoyaltyInsights,getCustomerDetails };
+// ✅ Export complete analytics data as CSV/Excel
+const exportAnalyticsData = async (req, res) => {
+  try {
+    const { storeId, format = "csv" } = req.query;
+
+    // 1️⃣ Validate storeId
+    if (!storeId) {
+      return res.status(400).json({ message: "storeId is required" });
+    }
+
+    const storeCheck = await pool.query("SELECT id FROM stores WHERE id = $1", [storeId]);
+    if (storeCheck.rows.length === 0) {
+      return res.status(404).json({ message: "Invalid storeId" });
+    }
+
+    // 2️⃣ Fetch analytics data (customers + spending summary)
+    const analyticsQuery = `
+      SELECT 
+        c.customer_name AS "Customer Name",
+        c.phone AS "Phone",
+        COUNT(i.id) AS "Total Orders",
+        COALESCE(SUM(i.total), 0) AS "Total Spent",
+        MAX(i.created_at) AS "Last Purchase"
+      FROM customers c
+      LEFT JOIN invoices i ON i.customer_id = c.id
+      WHERE c.store_id = $1
+      GROUP BY c.customer_name, c.phone
+      ORDER BY "Total Spent" DESC;
+    `;
+
+    const result = await pool.query(analyticsQuery, [storeId]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "No analytics data found for this store" });
+    }
+
+    // 3️⃣ Generate and send file
+    if (format === "xlsx") {
+      // Excel format
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet("Analytics Data");
+
+      worksheet.columns = Object.keys(result.rows[0]).map((key) => ({
+        header: key,
+        key,
+        width: 20,
+      }));
+
+      worksheet.addRows(result.rows);
+
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename=analytics_${storeId}.xlsx`
+      );
+
+      await workbook.xlsx.write(res);
+      res.end();
+    } else {
+      // Default: CSV
+      const json2csv = new Parser();
+      const csv = json2csv.parse(result.rows);
+
+      res.header("Content-Type", "text/csv");
+      res.attachment(`analytics_${storeId}.csv`);
+      res.send(csv);
+    }
+  } catch (error) {
+    console.error("❌ Error exporting analytics data:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+
+
+module.exports = { getAllCustomers, getRepeatCustomers, getNewCustomers, getAverageInvoiceValue , getCustomerSpendingTrends, getTopCustomers, getCustomerLoyaltyInsights,getCustomerDetails, exportAnalyticsData };
