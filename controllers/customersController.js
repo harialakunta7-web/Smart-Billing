@@ -115,7 +115,7 @@ const pool = require("../db");
 const { Parser } = require("json2csv");
 const ExcelJS = require("exceljs");
 const PDFDocument= require("pdfkit");
-const { ChartJSNodeCanvas } = require("chartjs-node-canvas");
+const {ChartJSNodeCanvas} = require("chartjs-node-canvas");
 const moment = require("moment");
 
 
