@@ -114,9 +114,10 @@
 const pool = require("../db");
 const { Parser } = require("json2csv");
 const ExcelJS = require("exceljs");
-const PDFDocument= require("pdfkit");
-const {ChartJSNodeCanvas} = require("chartjs-node-canvas");
-const moment = require("moment");
+const PDFDocument = require("pdfkit");
+const fs = require("fs");
+const path = require("path");
+
 
 
 
@@ -586,115 +587,67 @@ const exportAnalyticsData = async (req, res) => {
   }
 };
 
+// ✅ Generate Detailed Analytics Report as PDF
 
-// ✅ Generate Detailed Analytics Report (PDF)
-const chartJSNodeCanvas = new ChartJSNodeCanvas({ width: 600, height: 300 });
+const generateDetailedReport = async (req, res) => {
+  const { storeId, range = "monthly" } = req.query;
 
- const getDetailedReport = async (req, res) => {
   try {
-    const { storeId, range = "30days" } = req.query;
-
     if (!storeId) {
-      return res.status(400).json({ message: "storeId is required" });
+      return res.status(400).json({ error: "storeId is required" });
     }
 
-    // Validate store existence
-    const storeCheck = await pool.query("SELECT * FROM stores WHERE id = $1", [storeId]);
-    if (storeCheck.rows.length === 0) {
-      return res.status(404).json({ message: "Invalid storeId" });
-    }
-
-    // Get data from DB
-    const totalCustomers = await pool.query(
-      "SELECT COUNT(*) FROM customers WHERE store_id = $1",
+    // 🧾 Get basic data for the report
+    const invoices = await pool.query(
+      `SELECT id, total, created_at
+       FROM invoices
+       WHERE store_id = $1
+       ORDER BY created_at DESC`,
       [storeId]
     );
 
-    const totalInvoices = await pool.query(
-      "SELECT COUNT(*) FROM invoices WHERE store_id = $1",
-      [storeId]
-    );
+    // 🧮 Summary stats
+    const totalInvoices = invoices.rows.length;
+    const totalRevenue = invoices.rows.reduce((sum, inv) => sum + Number(inv.total), 0);
+    const avgInvoiceValue = totalInvoices > 0 ? totalRevenue / totalInvoices : 0;
 
-    const avgInvoiceValue = await pool.query(
-      "SELECT AVG(total) as avg FROM invoices WHERE store_id = $1",
-      [storeId]
-    );
-
-    const topCustomers = await pool.query(
-      `SELECT c.customer_name, COUNT(i.id) as orders, SUM(i.total) as spent
-       FROM invoices i
-       JOIN customers c ON i.customer_id = c.id
-       WHERE i.store_id = $1
-       GROUP BY c.customer_name
-       ORDER BY spent DESC
-       LIMIT 5`,
-      [storeId]
-    );
-
-    // --- Generate chart (Top Customers Spending) ---
-    const labels = topCustomers.rows.map(c => c.customer_name);
-    const values = topCustomers.rows.map(c => Number(c.spent));
-
-    const chartBuffer = await chartJSNodeCanvas.renderToBuffer({
-      type: "bar",
-      data: {
-        labels,
-        datasets: [
-          {
-            label: "Top Customers by Spending",
-            data: values,
-          },
-        ],
-      },
-      options: {
-        plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true } },
-      },
-    });
-
-    // --- Create PDF ---
+    // 🧾 Create PDF (without using canvas)
     const doc = new PDFDocument();
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      "attachment; filename=detailed_analytics_report.pdf"
-    );
+    const filePath = path.join(__dirname, "../reports", `detailed-report-${Date.now()}.pdf`);
 
-    doc.pipe(res);
+    // Make sure directory exists
+    fs.mkdirSync(path.join(__dirname, "../reports"), { recursive: true });
+    const stream = fs.createWriteStream(filePath);
+    doc.pipe(stream);
 
-    doc.fontSize(20).text("📊 Detailed Analytics Report", { align: "center" });
+    doc.fontSize(20).text("Detailed Analytics Report", { align: "center" });
     doc.moveDown();
-
     doc.fontSize(12).text(`Store ID: ${storeId}`);
-    doc.text(`Date: ${moment().format("YYYY-MM-DD HH:mm")}`);
-    doc.text(`Range: ${range}`);
-    doc.moveDown();
+    doc.text(`Date Range: ${range}`);
+    doc.text(`Total Invoices: ${totalInvoices}`);
+    doc.text(`Total Revenue: ₹${totalRevenue.toFixed(2)}`);
+    doc.text(`Average Invoice Value: ₹${avgInvoiceValue.toFixed(2)}`);
 
-    doc.fontSize(14).text("Overview:");
-    doc.fontSize(12).list([
-      `Total Customers: ${totalCustomers.rows[0].count}`,
-      `Total Invoices: ${totalInvoices.rows[0].count}`,
-      `Average Invoice Value: ₹${Number(avgInvoiceValue.rows[0].avg || 0).toFixed(2)}`,
-    ]);
     doc.moveDown();
-
-    doc.fontSize(14).text("Top 5 Customers:");
-    topCustomers.rows.forEach((c, i) => {
-      doc.text(
-        `${i + 1}. ${c.customer_name} — ₹${Number(c.spent).toFixed(2)} (${c.orders} orders)`
-      );
+    doc.fontSize(14).text("Recent Invoices:");
+    invoices.rows.slice(0, 10).forEach((inv) => {
+      doc.fontSize(12).text(`Invoice #${inv.id} — ₹${inv.total} — ${inv.created_at}`);
     });
-
-    doc.addPage();
-    doc.fontSize(16).text("Top Customers Chart", { align: "center" });
-    doc.image(chartBuffer, { fit: [500, 300], align: "center" });
 
     doc.end();
+
+    stream.on("finish", () => {
+      res.download(filePath, "analytics-report.pdf", (err) => {
+        if (err) console.error("Error sending file:", err);
+        fs.unlinkSync(filePath); // cleanup
+      });
+    });
   } catch (error) {
-    console.error("❌ Error generating PDF report:", error);
-    res.status(500).json({ message: "Error generating report", error: error.message });
+    console.error("❌ Error generating report:", error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
 
-module.exports = { getAllCustomers, getRepeatCustomers, getNewCustomers, getAverageInvoiceValue , getCustomerSpendingTrends, getTopCustomers, getCustomerLoyaltyInsights,getCustomerDetails, exportAnalyticsData,getDetailedReport };
+
+module.exports = { getAllCustomers, getRepeatCustomers, getNewCustomers, getAverageInvoiceValue , getCustomerSpendingTrends, getTopCustomers, getCustomerLoyaltyInsights,getCustomerDetails, exportAnalyticsData,generateDetailedReport };
