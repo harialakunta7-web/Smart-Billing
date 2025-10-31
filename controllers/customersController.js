@@ -466,4 +466,40 @@ const getCustomerLoyaltyInsights = async (req, res) => {
 
 
 
-module.exports = { getAllCustomers, getRepeatCustomers, getNewCustomers, getAverageInvoiceValue , getCustomerSpendingTrends, getTopCustomers, getCustomerLoyaltyInsights };
+// ✅ Get individual customer purchase summary
+const getCustomerDetails = async (req, res) => {
+  const { customerId } = req.params;
+
+  try {
+    // 1️⃣ Get customer + invoice data
+    const query = `
+      SELECT 
+        c.customer_name AS name,
+        c.phone AS contact,
+        COALESCE(SUM(i.total), 0) AS totalSpent,
+        COUNT(i.id) AS orders,
+        MAX(i.created_at) AS lastPurchase
+      FROM customers c
+      LEFT JOIN invoices i ON i.customer_id = c.id
+      WHERE c.customer_code = $1
+      GROUP BY c.customer_name, c.phone
+    `;
+
+    const result = await pool.query(query, [customerId]);
+
+    // 2️⃣ If no such customer
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "Customer not found" });
+    }
+
+    // 3️⃣ Send response
+    res.json(result.rows[0]);
+
+  } catch (err) {
+    console.error("❌ Error fetching customer details:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+
+module.exports = { getAllCustomers, getRepeatCustomers, getNewCustomers, getAverageInvoiceValue , getCustomerSpendingTrends, getTopCustomers, getCustomerLoyaltyInsights,getCustomerDetails };

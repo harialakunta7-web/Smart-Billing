@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { getAllCustomers,getRepeatCustomers,getNewCustomers,getAverageInvoiceValue ,getCustomerSpendingTrends, getTopCustomers,getCustomerLoyaltyInsights} = require("../controllers/customersController");
+const { getAllCustomers,getRepeatCustomers,getNewCustomers,getAverageInvoiceValue ,getCustomerSpendingTrends, getTopCustomers,getCustomerLoyaltyInsights,getCustomerDetails} = require("../controllers/customersController");
 
 // GET /api/customers?storeId=1
 router.get("/customers", getAllCustomers);
@@ -16,5 +16,7 @@ router.get("/customers/spending-trends", getCustomerSpendingTrends);
 router.get("/customers/top-spenders", getTopCustomers);
 //customer loyalty insights can be added here in future
 router.get("/customers/loyalty-insights", getCustomerLoyaltyInsights);
+//get customer by id
+router.get("/customers/detailes/:customerId", getCustomerDetails);
 
 module.exports = router;
