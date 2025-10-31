@@ -378,4 +378,92 @@ const getTopCustomers = async (req, res) => {
 };
 
 
-module.exports = { getAllCustomers, getRepeatCustomers, getNewCustomers, getAverageInvoiceValue , getCustomerSpendingTrends, getTopCustomers};
+// 📊 Get Customer Loyalty Insights
+const getCustomerLoyaltyInsights = async (req, res) => {
+  const { storeId } = req.query;
+
+  try {
+    // ✅ Validate input
+    if (!storeId) {
+      return res.status(400).json({ error: "storeId is required" });
+    }
+
+    // ✅ Verify store exists
+    const storeCheck = await pool.query("SELECT id FROM stores WHERE id = $1", [storeId]);
+    if (storeCheck.rows.length === 0) {
+      return res.status(404).json({ error: "Store not found" });
+    }
+
+    // 🧮 Total & Repeat Customers
+    const customerStats = await pool.query(
+      `
+      SELECT COUNT(DISTINCT c.id) AS total_customers,
+             COUNT(DISTINCT CASE WHEN inv_count > 1 THEN c.id END) AS repeat_customers
+      FROM (
+        SELECT customer_id, COUNT(*) AS inv_count
+        FROM invoices
+        WHERE store_id = $1
+        GROUP BY customer_id
+      ) i
+      JOIN customers c ON i.customer_id = c.id
+      `,
+      [storeId]
+    );
+
+    const totalCustomers = parseInt(customerStats.rows[0].total_customers) || 0;
+    const repeatCustomers = parseInt(customerStats.rows[0].repeat_customers) || 0;
+
+    const loyaltyScore =
+      totalCustomers > 0 ? Math.round((repeatCustomers / totalCustomers) * 100) : 0;
+
+    // 🧮 Frequency Score
+    const freqResult = await pool.query(
+      `
+      SELECT ROUND(AVG(inv_count)::numeric, 2) AS avg_frequency
+      FROM (
+        SELECT customer_id, COUNT(*) AS inv_count
+        FROM invoices
+        WHERE store_id = $1
+        GROUP BY customer_id
+      ) sub
+      `,
+      [storeId]
+    );
+
+    const avgFrequency = freqResult.rows[0].avg_frequency || 0;
+    const frequencyScore = Math.min(Math.round(avgFrequency * 20), 100); // scale to 100
+
+    // 🧮 Average Order Interval (days)
+    const intervalResult = await pool.query(
+      `
+      SELECT AVG(diff) AS avg_interval
+      FROM (
+        SELECT customer_id,
+               EXTRACT(DAY FROM created_at - LAG(created_at)
+                       OVER (PARTITION BY customer_id ORDER BY created_at)) AS diff
+        FROM invoices
+        WHERE store_id = $1
+      ) diffs
+      WHERE diff IS NOT NULL
+      `,
+      [storeId]
+    );
+
+    const avgOrderInterval = Math.round(intervalResult.rows[0].avg_interval || 0);
+
+    // ✅ Send response
+    return res.status(200).json({
+      loyaltyScore,
+      frequencyScore,
+      avgOrderInterval,
+    });
+
+  } catch (error) {
+    console.error("❌ Error fetching customer loyalty insights:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+
+
+module.exports = { getAllCustomers, getRepeatCustomers, getNewCustomers, getAverageInvoiceValue , getCustomerSpendingTrends, getTopCustomers, getCustomerLoyaltyInsights };
