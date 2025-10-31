@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { getAllCustomers,getRepeatCustomers,getNewCustomers,getAverageInvoiceValue ,getCustomerSpendingTrends, getTopCustomers,getCustomerLoyaltyInsights,getCustomerDetails,exportAnalyticsData} = require("../controllers/customersController");
+const { getAllCustomers,getRepeatCustomers,getNewCustomers,getAverageInvoiceValue ,getCustomerSpendingTrends, getTopCustomers,getCustomerLoyaltyInsights,getCustomerDetails,exportAnalyticsData,getDetailedReport} = require("../controllers/customersController");
 
 // GET /api/customers?storeId=1
 router.get("/customers", getAllCustomers);
@@ -20,5 +20,7 @@ router.get("/customers/loyalty-insights", getCustomerLoyaltyInsights);
 router.get("/customers/detailes/:customerId", getCustomerDetails);
 // Export complete analytics data as CSV/Excel
 router.get("/analytics/exports", exportAnalyticsData);
+// Export detailed analytics report as PDF
+router.get("/analytics/detailes/report", getDetailedReport);
 
 module.exports = router;

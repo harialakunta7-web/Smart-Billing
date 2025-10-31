@@ -114,6 +114,11 @@
 const pool = require("../db");
 const { Parser } = require("json2csv");
 const ExcelJS = require("exceljs");
+const PDFDocument= require("pdfkit");
+const { ChartJSNodeCanvas } = require("chartjs-node-canvas");
+const moment = require("moment");
+
+
 
 // Get All Customers for a store
 const getAllCustomers = async (req, res) => {
@@ -582,5 +587,114 @@ const exportAnalyticsData = async (req, res) => {
 };
 
 
+// ✅ Generate Detailed Analytics Report (PDF)
+const chartJSNodeCanvas = new ChartJSNodeCanvas({ width: 600, height: 300 });
 
-module.exports = { getAllCustomers, getRepeatCustomers, getNewCustomers, getAverageInvoiceValue , getCustomerSpendingTrends, getTopCustomers, getCustomerLoyaltyInsights,getCustomerDetails, exportAnalyticsData };
+ const getDetailedReport = async (req, res) => {
+  try {
+    const { storeId, range = "30days" } = req.query;
+
+    if (!storeId) {
+      return res.status(400).json({ message: "storeId is required" });
+    }
+
+    // Validate store existence
+    const storeCheck = await pool.query("SELECT * FROM stores WHERE id = $1", [storeId]);
+    if (storeCheck.rows.length === 0) {
+      return res.status(404).json({ message: "Invalid storeId" });
+    }
+
+    // Get data from DB
+    const totalCustomers = await pool.query(
+      "SELECT COUNT(*) FROM customers WHERE store_id = $1",
+      [storeId]
+    );
+
+    const totalInvoices = await pool.query(
+      "SELECT COUNT(*) FROM invoices WHERE store_id = $1",
+      [storeId]
+    );
+
+    const avgInvoiceValue = await pool.query(
+      "SELECT AVG(total) as avg FROM invoices WHERE store_id = $1",
+      [storeId]
+    );
+
+    const topCustomers = await pool.query(
+      `SELECT c.customer_name, COUNT(i.id) as orders, SUM(i.total) as spent
+       FROM invoices i
+       JOIN customers c ON i.customer_id = c.id
+       WHERE i.store_id = $1
+       GROUP BY c.customer_name
+       ORDER BY spent DESC
+       LIMIT 5`,
+      [storeId]
+    );
+
+    // --- Generate chart (Top Customers Spending) ---
+    const labels = topCustomers.rows.map(c => c.customer_name);
+    const values = topCustomers.rows.map(c => Number(c.spent));
+
+    const chartBuffer = await chartJSNodeCanvas.renderToBuffer({
+      type: "bar",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "Top Customers by Spending",
+            data: values,
+          },
+        ],
+      },
+      options: {
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true } },
+      },
+    });
+
+    // --- Create PDF ---
+    const doc = new PDFDocument();
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=detailed_analytics_report.pdf"
+    );
+
+    doc.pipe(res);
+
+    doc.fontSize(20).text("📊 Detailed Analytics Report", { align: "center" });
+    doc.moveDown();
+
+    doc.fontSize(12).text(`Store ID: ${storeId}`);
+    doc.text(`Date: ${moment().format("YYYY-MM-DD HH:mm")}`);
+    doc.text(`Range: ${range}`);
+    doc.moveDown();
+
+    doc.fontSize(14).text("Overview:");
+    doc.fontSize(12).list([
+      `Total Customers: ${totalCustomers.rows[0].count}`,
+      `Total Invoices: ${totalInvoices.rows[0].count}`,
+      `Average Invoice Value: ₹${Number(avgInvoiceValue.rows[0].avg || 0).toFixed(2)}`,
+    ]);
+    doc.moveDown();
+
+    doc.fontSize(14).text("Top 5 Customers:");
+    topCustomers.rows.forEach((c, i) => {
+      doc.text(
+        `${i + 1}. ${c.customer_name} — ₹${Number(c.spent).toFixed(2)} (${c.orders} orders)`
+      );
+    });
+
+    doc.addPage();
+    doc.fontSize(16).text("Top Customers Chart", { align: "center" });
+    doc.image(chartBuffer, { fit: [500, 300], align: "center" });
+
+    doc.end();
+  } catch (error) {
+    console.error("❌ Error generating PDF report:", error);
+    res.status(500).json({ message: "Error generating report", error: error.message });
+  }
+};
+
+
+module.exports = { getAllCustomers, getRepeatCustomers, getNewCustomers, getAverageInvoiceValue , getCustomerSpendingTrends, getTopCustomers, getCustomerLoyaltyInsights,getCustomerDetails, exportAnalyticsData,getDetailedReport };
